@@ -27,14 +27,16 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Captura el texto enviado por Telegram y lo manda al flujo de analisis.
     text = update.message.text
+    print(f"[Telegram] Mensaje recibido: {text}")
 
     await update.message.reply_text("Analizando lead...")
 
     try:
         result = analyze_lead(text)
     except Exception:
+        print("[LLM] Fallo el analisis del lead")
         await update.message.reply_text(
-            "No pude analizar el lead en este momento. Revisemos la configuracion o el JSON de OpenAI."
+            "No pude analizar el lead en este momento. Revisemos la configuracion del proveedor LLM."
         )
         return
 
@@ -47,10 +49,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(reply)
 
     # Guarda el lead despues de responder para que Sheets no bloquee al usuario.
-    log_lead(text, result)
+    print("[Sheets] Intentando guardar lead...")
+    sheets_ok = log_lead(text, result)
+
+    if sheets_ok:
+        print("[Sheets] Lead guardado correctamente")
+    else:
+        print("[Sheets] Fallo el guardado del lead")
 
 
 def main():
+    print("[Bot] Iniciando Orbyn Lead Bot...")
+
     # Crea la app del bot usando el token de BotFather.
     app = ApplicationBuilder().token(TOKEN).build()
 
@@ -60,7 +70,7 @@ def main():
     # Handler para mensajes normales de texto.
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
-    print("Bot corriendo con polling...")
+    print("[Bot] Bot corriendo con polling...")
 
     # Mantiene el bot escuchando mensajes.
     app.run_polling()
